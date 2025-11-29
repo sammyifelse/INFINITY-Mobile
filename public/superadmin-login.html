@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Superadmin Login - Infinity Mobile</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="logo-section">
+            <h1>📱 Infinity Mobile</h1>
+            <p>Superadmin Login</p>
+        </div>
+
+        <div class="card">
+            <h2>Superadmin Access</h2>
+            <p>Enter your credentials to continue</p>
+
+            <div id="alert-container"></div>
+
+            <form id="superadmin-login-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+
+                <button type="submit" class="btn btn-accent">Login as Superadmin</button>
+            </form>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <a href="/index.html" style="color: var(--primary-color); text-decoration: none;">← Back to Home</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script>
+        const form = document.getElementById('superadmin-login-form');
+        const alertContainer = document.getElementById('alert-container');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/auth/superadmin/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store token and user data
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // Redirect to superadmin dashboard
+                    window.location.href = '/superadmin-dashboard.html';
+                } else {
+                    showAlert(data.message || 'Login failed', 'error');
+                }
+            } catch (error) {
+                showAlert('Connection error. Please try again.', 'error');
+            }
+        });
+
+        function showAlert(message, type) {
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        }
+    </script>
+</body>
+</html>

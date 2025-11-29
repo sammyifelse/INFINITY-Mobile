@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopkeeper Login - Infinity Mobile</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="logo-section">
+            <h1>📱 Infinity Mobile</h1>
+            <p>Shopkeeper Login</p>
+        </div>
+
+        <div class="card">
+            <h2>Enter Your Details</h2>
+            <p>Please provide your information to place an order</p>
+
+            <div id="alert-container"></div>
+
+            <form id="shopkeeper-login-form">
+                <div class="form-group">
+                    <label for="name">Your Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="shopName">Shop Name</label>
+                    <input type="text" id="shopName" name="shopName" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="phoneNumber">Phone Number</label>
+                    <input type="tel" id="phoneNumber" name="phoneNumber" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Continue to Order</button>
+            </form>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <a href="/index.html" style="color: var(--primary-color); text-decoration: none;">← Back to Home</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script>
+        const form = document.getElementById('shopkeeper-login-form');
+        const alertContainer = document.getElementById('alert-container');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('name').value,
+                shopName: document.getElementById('shopName').value,
+                phoneNumber: document.getElementById('phoneNumber').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/auth/shopkeeper/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store token and user data
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // Redirect to shopkeeper dashboard
+                    window.location.href = '/shopkeeper-dashboard.html';
+                } else {
+                    showAlert(data.message || 'Login failed', 'error');
+                }
+            } catch (error) {
+                showAlert('Connection error. Please try again.', 'error');
+            }
+        });
+
+        function showAlert(message, type) {
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        }
+    </script>
+</body>
+</html>

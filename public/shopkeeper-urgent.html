@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urgent Delivery - Infinity Mobile</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body style="background: #f9fafb;">
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <div>
+                <h1>⚡ Urgent Delivery</h1>
+                <p>Fast Delivery Within 1 Hour</p>
+            </div>
+            <div style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 18px 30px; border-radius: 16px; text-align: center; box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35); min-width: 240px; border: 2px solid rgba(255, 255, 255, 0.2);">
+                <div style="font-size: 0.75rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">⚡ Urgent Charges</div>
+                <div style="font-weight: 700; font-size: 1.05rem; line-height: 1.6;">💰 Delivery: ₹200 Extra</div>
+                <div style="font-weight: 700; font-size: 1.05rem; margin-top: 2px; line-height: 1.6;">💵 Advance: ₹100 Required</div>
+            </div>
+            <div class="user-info">
+                <p><strong id="user-name"></strong></p>
+                <p id="shop-name"></p>
+                <a href="/shopkeeper-dashboard.html" class="btn btn-outline" style="margin-top: 10px; padding: 8px 16px; font-size: 0.9rem; display: inline-block; text-decoration: none;">← Back to Dashboard</a>
+            </div>
+        </div>
+
+        <div class="orders-section">
+            <h2>Create Urgent Order</h2>
+            <div id="alert-container"></div>
+
+            <!-- Urgent Delivery Info Banner -->
+            <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); padding: 20px; border-radius: 12px; border-left: 4px solid #f59e0b; margin-bottom: 25px;">
+                <h3 style="color: #92400e; margin-bottom: 10px; font-size: 1.3rem;">⚡ Urgent Delivery Service</h3>
+                <ul style="color: #78350f; line-height: 1.8; margin-left: 20px;">
+                    <li><strong>Delivery Time:</strong> Within 1 hour of order placement</li>
+                    <li><strong>Delivery Charge:</strong> ₹200 (Extra)</li>
+                    <li><strong>Advance Payment:</strong> ₹100 (Required before processing)</li>
+                    <li><strong>Payment Method:</strong> UPI / QR Code (shown below)</li>
+                </ul>
+            </div>
+
+            <form id="urgent-order-form">
+                <div class="form-group">
+                    <label for="orderContent">Order Details (Notepad Style)</label>
+                    <textarea 
+                        id="orderContent" 
+                        name="orderContent" 
+                        placeholder="Example:&#10;CC Board - 10 pieces (URGENT)&#10;Display - 5 pieces (URGENT)&#10;Battery - 20 pieces (URGENT)&#10;&#10;Type your urgent order here..."
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Additional Notes (Optional)</label>
+                    <input type="text" id="notes" name="notes" placeholder="Any special instructions for urgent delivery">
+                </div>
+
+                <!-- Payment Section -->
+                <div style="background: linear-gradient(135deg, #ffffff, #f3f4f6); padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #e5e7eb;">
+                    <h3 style="color: #1f2937; margin-bottom: 15px; font-size: 1.2rem;">💳 Advance Payment - ₹100</h3>
+                    <p style="color: #6b7280; margin-bottom: 15px;">Scan the QR code below to pay ₹100 advance</p>
+                    
+                    <!-- QR Code Placeholder -->
+                    <div style="text-align: center; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 15px;">
+                        <div style="width: 250px; height: 250px; margin: 0 auto; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1rem; font-weight: 600; text-align: center; padding: 20px;">
+                            📱<br>QR Code<br>Scan to Pay ₹100<br><br>
+                            <small style="font-size: 0.85rem; opacity: 0.9;">UPI ID: merchant@upi</small>
+                        </div>
+                        <p style="margin-top: 15px; color: #6b7280; font-size: 0.9rem;">Scan with any UPI app (PhonePe, Paytm, Google Pay)</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="transactionId">Transaction ID / UPI Reference Number *</label>
+                        <input type="text" id="transactionId" name="transactionId" placeholder="Enter transaction ID after payment" required>
+                        <small style="color: #6b7280; display: block; margin-top: 5px;">Enter the UPI transaction reference number as proof of payment</small>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-size: 1.1rem; padding: 14px;">⚡ Submit Urgent Order</button>
+            </form>
+        </div>
+
+        <div class="orders-section" style="margin-top: 30px;">
+            <h2>My Urgent Orders</h2>
+            <div id="urgent-orders-list" class="loading">Loading urgent orders...</div>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // Check authentication
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        if (!token || user.role !== 'shopkeeper') {
+            window.location.href = '/shopkeeper-login.html';
+        }
+
+        // Display user info
+        document.getElementById('user-name').textContent = user.name;
+        document.getElementById('shop-name').textContent = user.shopName;
+
+        const alertContainer = document.getElementById('alert-container');
+        const urgentOrderForm = document.getElementById('urgent-order-form');
+        const urgentOrdersListDiv = document.getElementById('urgent-orders-list');
+
+        // Submit urgent order
+        urgentOrderForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const transactionId = document.getElementById('transactionId').value.trim();
+            if (!transactionId) {
+                showAlert('Please enter the transaction ID after making payment', 'error');
+                return;
+            }
+
+            const formData = {
+                orderContent: document.getElementById('orderContent').value,
+                notes: document.getElementById('notes').value + ' [URGENT DELIVERY - 1 HOUR] [Advance Paid: ₹100, Transaction: ' + transactionId + ']',
+                isUrgent: true,
+                transactionId: transactionId
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('Urgent order submitted successfully! Delivery within 1 hour.', 'success');
+                    urgentOrderForm.reset();
+                    loadUrgentOrders();
+                } else {
+                    showAlert(data.message || 'Failed to submit urgent order', 'error');
+                }
+            } catch (error) {
+                showAlert('Connection error. Please try again.', 'error');
+            }
+        });
+
+        // Load urgent orders
+        async function loadUrgentOrders() {
+            try {
+                const response = await fetch(`${API_URL}/orders`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Filter urgent orders (those with [URGENT DELIVERY] in notes)
+                    const urgentOrders = data.orders.filter(order => 
+                        order.notes && order.notes.includes('[URGENT DELIVERY')
+                    );
+                    displayUrgentOrders(urgentOrders);
+                } else {
+                    urgentOrdersListDiv.innerHTML = '<div class="empty-state">Failed to load orders</div>';
+                }
+            } catch (error) {
+                urgentOrdersListDiv.innerHTML = '<div class="empty-state">Connection error</div>';
+            }
+        }
+
+        function displayUrgentOrders(orders) {
+            if (orders.length === 0) {
+                urgentOrdersListDiv.innerHTML = '<div class="empty-state"><h3>No urgent orders yet</h3><p>Submit your first urgent order above</p></div>';
+                return;
+            }
+
+            urgentOrdersListDiv.innerHTML = orders.map(order => `
+                <div class="order-card" style="border-left-color: #ef4444;${order.status === 'Deleted' ? ' opacity: 0.7; background: #fee2e2;' : ''}">
+                    <div class="order-header">
+                        <div class="order-info">
+                            <h3>⚡ Urgent Order #${order._id.slice(-6)}</h3>
+                            <p>${new Date(order.createdAt).toLocaleString()}</p>
+                        </div>
+                        <span class="order-status status-${order.status.toLowerCase()}">${order.status}</span>
+                    </div>
+                    <div class="order-content">${order.orderContent}</div>
+                    ${order.notes ? `<p><strong>Notes:</strong> ${order.notes}</p>` : ''}
+                    ${order.status === 'Delivered' ? `<p style="color: var(--secondary-color); margin-top: 10px;">✓ Delivered by admin</p>` : ''}
+                    ${order.status === 'Completed' ? `<p style="color: var(--secondary-color); margin-top: 10px;">✓✓ Confirmed by superadmin</p>` : ''}
+                    ${order.status === 'Deleted' ? `<p style="color: #991b1b; margin-top: 10px;">🗑️ Deleted on ${new Date(order.deletedAt).toLocaleString()}</p>` : ''}
+                    <div style="margin-top: 10px; padding: 10px; background: #fee2e2; border-radius: 6px; color: #991b1b; font-size: 0.9rem;">
+                        ⚡ <strong>Urgent Delivery:</strong> Expected within 1 hour | Advance Paid: ₹100
+                    </div>
+                    ${order.status === 'Pending' ? `
+                        <div style="margin-top: 15px;">
+                            <button onclick="deleteUrgentOrder('${order._id}')" class="btn btn-danger" style="width: 100%; padding: 10px;">🗑️ Delete Order</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function deleteUrgentOrder(orderId) {
+            if (!confirm('Are you sure you want to delete this urgent order? Your advance payment of ₹100 will need to be refunded separately.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/orders/${orderId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('Urgent order deleted successfully. Please contact admin for advance refund.', 'success');
+                    loadUrgentOrders();
+                } else {
+                    showAlert(data.message || 'Failed to delete order', 'error');
+                }
+            } catch (error) {
+                showAlert('Connection error. Please try again.', 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+
+        // Load urgent orders on page load
+        loadUrgentOrders();
+    </script>
+</body>
+</html>

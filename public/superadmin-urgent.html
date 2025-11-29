@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urgent Orders - Superadmin - Infinity Mobile</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body style="background: #f9fafb;">
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <div>
+                <h1>⚡ Urgent Orders - Superadmin Panel</h1>
+                <p>Priority Delivery Within 1 Hour</p>
+            </div>
+            <div style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 18px 30px; border-radius: 16px; text-align: center; box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35); min-width: 240px; border: 2px solid rgba(255, 255, 255, 0.2);">
+                <div style="font-size: 0.75rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">⚡ Urgent Stats</div>
+                <div style="font-weight: 700; font-size: 1.05rem; line-height: 1.6;" id="urgent-count">0 Urgent Orders</div>
+                <div style="font-weight: 700; font-size: 1.05rem; margin-top: 2px; line-height: 1.6;">⏱️ 1 Hour Delivery</div>
+            </div>
+            <div class="user-info">
+                <p><strong id="user-name"></strong></p>
+                <p>Superadmin</p>
+                <a href="/superadmin-dashboard.html" class="btn btn-outline" style="margin-top: 10px; padding: 8px 16px; font-size: 0.9rem; display: inline-block; text-decoration: none;">← Back to Dashboard</a>
+            </div>
+        </div>
+
+        <div class="orders-section">
+            <h2>All Urgent Orders</h2>
+            <div style="margin-bottom: 20px;">
+                <select id="status-filter" style="padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; width: 200px;">
+                    <option value="all">All Urgent Orders</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+            <div id="orders-list" class="loading">Loading urgent orders...</div>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // Check authentication
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        if (!token || user.role !== 'superadmin') {
+            window.location.href = '/superadmin-login.html';
+        }
+
+        document.getElementById('user-name').textContent = user.name;
+
+        const ordersListDiv = document.getElementById('orders-list');
+        const statusFilter = document.getElementById('status-filter');
+        let allUrgentOrders = [];
+
+        // Socket.IO connection
+        const socket = io(SOCKET_URL, {
+            auth: { token }
+        });
+
+        socket.on('connect', () => {
+            console.log('Connected to socket server');
+            socket.emit('joinRoom', 'superadmin');
+        });
+
+        socket.on('newOrder', (data) => {
+            loadUrgentOrders();
+            if (data.isUrgent) {
+                showToast('⚡ New URGENT order from ' + data.shopName);
+            }
+        });
+
+        socket.on('orderDelivered', (data) => {
+            loadUrgentOrders();
+        });
+
+        statusFilter.addEventListener('change', filterOrders);
+
+        // Load urgent orders
+        async function loadUrgentOrders() {
+            try {
+                const response = await fetch(`${API_URL}/orders`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Filter urgent orders
+                    allUrgentOrders = data.orders.filter(order => 
+                        order.notes && order.notes.includes('[URGENT DELIVERY')
+                    );
+                    document.getElementById('urgent-count').textContent = allUrgentOrders.length + ' Urgent Orders';
+                    filterOrders();
+                } else {
+                    ordersListDiv.innerHTML = '<div class="empty-state">Failed to load orders</div>';
+                }
+            } catch (error) {
+                ordersListDiv.innerHTML = '<div class="empty-state">Connection error</div>';
+            }
+        }
+
+        function filterOrders() {
+            const filter = statusFilter.value;
+            const filtered = filter === 'all' ? allUrgentOrders : allUrgentOrders.filter(o => o.status === filter);
+            displayOrders(filtered);
+        }
+
+        function displayOrders(orders) {
+            if (orders.length === 0) {
+                ordersListDiv.innerHTML = '<div class="empty-state"><h3>No urgent orders found</h3><p>All urgent orders will appear here</p></div>';
+                return;
+            }
+
+            ordersListDiv.innerHTML = orders.map(order => `
+                <div class="order-card" style="border-left-color: #ef4444; background: linear-gradient(135deg, #fff, #fee2e2);">
+                    <div class="order-header">
+                        <div class="order-info">
+                            <h3>⚡ ${order.shopName} - URGENT</h3>
+                            <p><strong>${order.shopkeeperName}</strong> - ${order.phoneNumber}</p>
+                            <p>Order #${order._id.slice(-6)} - ${new Date(order.createdAt).toLocaleString()}</p>
+                        </div>
+                        <span class="order-status status-${order.status.toLowerCase()}">${order.status}</span>
+                    </div>
+                    <div style="background: #fef3c7; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #f59e0b;">
+                        <strong style="color: #92400e;">⚡ URGENT DELIVERY - Within 1 Hour</strong><br>
+                        <small style="color: #78350f;">Delivery Charge: ₹200 | Advance Paid: ₹100</small>
+                    </div>
+                    <div class="order-content">${order.orderContent}</div>
+                    ${order.notes ? `<p><strong>Notes:</strong> ${order.notes}</p>` : ''}
+                    ${order.deliveredBy ? `<p style="margin-top: 10px;"><strong>Delivered by:</strong> ${order.deliveredBy.name} on ${new Date(order.deliveredAt).toLocaleString()}</p>` : ''}
+                    <div class="order-actions">
+                        ${order.status === 'Delivered' ? `
+                            <button onclick="markCompleted('${order._id}')" class="btn btn-secondary">Confirm as Completed</button>
+                        ` : ''}
+                        ${order.status === 'Completed' ? `
+                            <p style="color: var(--secondary-color); padding: 10px;">✓✓ Completed on ${new Date(order.completedAt).toLocaleString()}</p>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function markCompleted(orderId) {
+            if (!confirm('Confirm this URGENT order as completed?')) return;
+
+            try {
+                const response = await fetch(`${API_URL}/orders/${orderId}/complete`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast('⚡ Urgent order marked as completed');
+                    loadUrgentOrders();
+                } else {
+                    alert(data.message || 'Failed to update order');
+                }
+            } catch (error) {
+                alert('Connection error. Please try again.');
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'alert alert-info';
+            toast.textContent = message;
+            toast.style.position = 'fixed';
+            toast.style.top = '20px';
+            toast.style.right = '20px';
+            toast.style.zIndex = '9999';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // Load urgent orders on page load
+        loadUrgentOrders();
+    </script>
+</body>
+</html>
