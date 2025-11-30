@@ -6,33 +6,24 @@ const Notification = require('../models/Notification');
 const { protect, authorize } = require('../middleware/auth');
 
 // @route   POST /api/orders
-// @desc    Create new order (Shopkeeper or Customer)
-// @access  Private - Shopkeeper, Customer
+// @desc    Create new order (Shopkeeper)
+// @access  Private - Shopkeeper
 router.post('/', [
   protect,
-  authorize('shopkeeper', 'customer'),
+  authorize('shopkeeper'),
   body('orderContent').notEmpty().trim()
 ], async (req, res) => {
   try {
     const { orderContent, notes, transactionId } = req.body;
 
-    // Create order based on user role
-    const orderData = {
+    const order = await Order.create({
       shopkeeper: req.user._id,
       shopkeeperName: req.user.name,
+      shopName: req.user.shopName,
       phoneNumber: req.user.phoneNumber,
       orderContent,
       notes
-    };
-
-    // Add role-specific fields
-    if (req.user.role === 'shopkeeper') {
-      orderData.shopName = req.user.shopName;
-    } else if (req.user.role === 'customer') {
-      orderData.shopName = req.user.address; // Use address as identifier for customers
-    }
-
-    const order = await Order.create(orderData);
+    });
 
     // Check if this is an urgent order with advance payment
     const isUrgent = notes && notes.includes('[URGENT DELIVERY');
@@ -95,13 +86,13 @@ router.post('/', [
 });
 
 // @route   GET /api/orders
-// @desc    Get all orders (Admin/Superadmin) or own orders (Shopkeeper/Customer)
+// @desc    Get all orders (Admin/Superadmin) or own orders (Shopkeeper)
 // @access  Private
 router.get('/', protect, async (req, res) => {
   try {
     let query = {};
     
-    if (req.user.role === 'shopkeeper' || req.user.role === 'customer') {
+    if (req.user.role === 'shopkeeper') {
       query.shopkeeper = req.user._id;
     }
 
