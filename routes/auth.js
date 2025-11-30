@@ -143,4 +143,53 @@ router.post('/superadmin/login', [
   }
 });
 
+// @route   POST /api/auth/customer/login
+// @desc    Customer login/registration
+// @access  Public
+router.post('/customer/login', [
+  body('name').notEmpty().trim(),
+  body('address').notEmpty().trim(),
+  body('phoneNumber').notEmpty().trim()
+], async (req, res) => {
+  try {
+    const { name, address, phoneNumber } = req.body;
+
+    // Find existing customer by phone number
+    let user = await User.findOne({ phoneNumber, role: 'customer' });
+
+    if (user) {
+      // Update customer details
+      user.name = name;
+      user.address = address;
+      user.lastLogin = Date.now();
+      await user.save();
+    } else {
+      // Create new customer
+      user = await User.create({
+        name,
+        address,
+        phoneNumber,
+        role: 'customer'
+      });
+    }
+
+    const token = generateToken(user._id);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        address: user.address,
+        phoneNumber: user.phoneNumber,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;

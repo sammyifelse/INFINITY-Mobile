@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['shopkeeper', 'admin', 'superadmin'],
+    enum: ['shopkeeper', 'customer', 'admin', 'superadmin'],
     required: true
   },
   // Shopkeeper specific fields
@@ -23,9 +23,17 @@ const userSchema = new mongoose.Schema({
   phoneNumber: {
     type: String,
     required: function() {
-      return this.role === 'shopkeeper';
+      return this.role === 'shopkeeper' || this.role === 'customer';
     },
     trim: true
+  },
+  // Customer specific fields
+  address: {
+    type: String,
+    trim: true,
+    required: function() {
+      return this.role === 'customer';
+    }
   },
   // Admin/Superadmin specific fields
   username: {
