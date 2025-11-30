@@ -14,7 +14,7 @@ router.post('/', [
   body('orderContent').notEmpty().trim()
 ], async (req, res) => {
   try {
-    const { orderContent, notes } = req.body;
+    const { orderContent, notes, transactionId } = req.body;
 
     const order = await Order.create({
       shopkeeper: req.user._id,
@@ -25,21 +25,52 @@ router.post('/', [
       notes
     });
 
-    // Create notification for admins and superadmin
+    // Check if this is an urgent order with advance payment
+    const isUrgent = notes && notes.includes('[URGENT DELIVERY');
+    const hasAdvance = transactionId && notes && notes.includes('Transaction:');
+
+    if (isUrgent && hasAdvance) {
+      // Extract transaction ID from notes
+      const transactionMatch = notes.match(/Transaction:\s*([^\]]+)/);
+      const extractedTransactionId = transactionMatch ? transactionMatch[1].trim() : transactionId;
+
+      // Create special notification for urgent order with advance payment
+      await Notification.create({
+        type: 'urgent_advance_paid',
+        order: order._id,
+        title: '⚡ URGENT: Advance Payment Received',
+        message: `${req.user.shopName} paid ₹100 advance for urgent delivery. Transaction ID: ${extractedTransactionId}`,
+        recipient: 'all'
+      });
+
+      // Emit special socket event for urgent order with payment
+      if (req.app.get('io')) {
+        req.app.get('io').emit('urgentAdvancePaid', {
+          orderId: order._id,
+          shopName: order.shopName,
+          shopkeeperName: order.shopkeeperName,
+          transactionId: extractedTransactionId,
+          amount: 100
+        });
+      }
+    }
+
+    // Create regular notification for admins and superadmin
     await Notification.create({
       type: 'new_order',
       order: order._id,
-      title: 'New Order Received',
-      message: `New order from ${req.user.shopName} (${req.user.name})`,
+      title: isUrgent ? '⚡ New URGENT Order' : 'New Order Received',
+      message: `New ${isUrgent ? 'URGENT ' : ''}order from ${req.user.shopName} (${req.user.name})`,
       recipient: 'all'
     });
 
-    // Emit socket event (will be handled by Socket.IO)
+    // Emit socket event
     if (req.app.get('io')) {
       req.app.get('io').emit('newOrder', {
         orderId: order._id,
         shopName: order.shopName,
-        shopkeeperName: order.shopkeeperName
+        shopkeeperName: order.shopkeeperName,
+        isUrgent: isUrgent
       });
     }
 
