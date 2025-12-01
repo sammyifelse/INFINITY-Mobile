@@ -6,24 +6,33 @@ const Notification = require('../models/Notification');
 const { protect, authorize } = require('../middleware/auth');
 
 // @route   POST /api/orders
-// @desc    Create new order (Shopkeeper)
-// @access  Private - Shopkeeper
+// @desc    Create new order (Shopkeeper or Customer)
+// @access  Private - Shopkeeper, Customer
 router.post('/', [
   protect,
-  authorize('shopkeeper'),
+  authorize('shopkeeper', 'customer'),
   body('orderContent').notEmpty().trim()
 ], async (req, res) => {
   try {
     const { orderContent, notes, transactionId } = req.body;
 
-    const order = await Order.create({
+    // Prepare order data based on user role
+    const orderData = {
       shopkeeper: req.user._id,
       shopkeeperName: req.user.name,
-      shopName: req.user.shopName,
       phoneNumber: req.user.phoneNumber,
       orderContent,
       notes
-    });
+    };
+
+    // Set shopName based on role
+    if (req.user.role === 'shopkeeper') {
+      orderData.shopName = req.user.shopName;
+    } else if (req.user.role === 'customer') {
+      orderData.shopName = `Customer: ${req.user.address}`;
+    }
+
+    const order = await Order.create(orderData);
 
     // Check if this is an urgent order with advance payment
     const isUrgent = notes && notes.includes('[URGENT DELIVERY');
@@ -34,12 +43,15 @@ router.post('/', [
       const transactionMatch = notes.match(/Transaction:\s*([^\]]+)/);
       const extractedTransactionId = transactionMatch ? transactionMatch[1].trim() : transactionId;
 
+      // Get display name based on role
+      const displayName = req.user.role === 'shopkeeper' ? req.user.shopName : `Customer: ${req.user.name}`;
+
       // Create special notification for urgent order with advance payment
       await Notification.create({
         type: 'urgent_advance_paid',
         order: order._id,
         title: '⚡ URGENT: Advance Payment Received',
-        message: `${req.user.shopName} paid ₹100 advance for urgent delivery. Transaction ID: ${extractedTransactionId}`,
+        message: `${displayName} paid ₹100 advance for urgent delivery. Transaction ID: ${extractedTransactionId}`,
         recipient: 'all'
       });
 
@@ -55,12 +67,15 @@ router.post('/', [
       }
     }
 
+    // Get display name based on role
+    const displayName = req.user.role === 'shopkeeper' ? req.user.shopName : `Customer: ${req.user.name}`;
+
     // Create regular notification for admins and superadmin
     await Notification.create({
       type: 'new_order',
       order: order._id,
       title: isUrgent ? '⚡ New URGENT Order' : 'New Order Received',
-      message: `New ${isUrgent ? 'URGENT ' : ''}order from ${req.user.shopName} (${req.user.name})`,
+      message: `New ${isUrgent ? 'URGENT ' : ''}order from ${displayName} (${req.user.name})`,
       recipient: 'all'
     });
 
@@ -86,13 +101,13 @@ router.post('/', [
 });
 
 // @route   GET /api/orders
-// @desc    Get all orders (Admin/Superadmin) or own orders (Shopkeeper)
+// @desc    Get all orders (Admin/Superadmin) or own orders (Shopkeeper/Customer)
 // @access  Private
 router.get('/', protect, async (req, res) => {
   try {
     let query = {};
     
-    if (req.user.role === 'shopkeeper') {
+    if (req.user.role === 'shopkeeper' || req.user.role === 'customer') {
       query.shopkeeper = req.user._id;
     }
 
